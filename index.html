@@ -3,7 +3,7 @@
 <html>
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>樂透助手</title>
+<title>樂透策略助手</title>
 
 <style>
 body{
@@ -15,28 +15,45 @@ body{
 
 h2{margin-top:20px;}
 
+.group{
+  background:white;
+  padding:15px;
+  border-radius:12px;
+  margin:12px 0;
+}
+
+.best{
+  border:3px solid #34C759;
+}
+
 .numbers{
   display:flex;
   justify-content:center;
   flex-wrap:wrap;
-  gap:14px;
-  margin:15px 0;
+  gap:12px;
+  margin:10px 0;
 }
 
 .ball{
-  width:50px;
-  height:50px;
+  width:46px;
+  height:46px;
   border-radius:50%;
   background:#007AFF;
   color:white;
   display:flex;
   align-items:center;
   justify-content:center;
-  font-size:20px;
+  font-size:18px;
   font-weight:bold;
 }
 
 .power{background:#ff9500;}
+
+.roi{
+  font-size:14px;
+  margin-top:5px;
+  color:#555;
+}
 
 button{
   padding:14px 28px;
@@ -52,23 +69,6 @@ select{
   padding:10px;
   font-size:16px;
   border-radius:10px;
-  margin-top:10px;
-}
-
-.info{
-  margin-top:15px;
-  font-size:14px;
-  color:#333;
-  background:white;
-  padding:12px;
-  border-radius:10px;
-  line-height:1.5;
-}
-
-.roi{
-  margin-top:10px;
-  font-size:14px;
-  color:#555;
 }
 </style>
 
@@ -76,25 +76,21 @@ select{
 
 <body>
 
-<h2>🎯 大樂透</h2>
-<div id="lotto" class="numbers"></div>
+<h2>🎯 自動選最佳號碼</h2>
 
-<h2>⚡ 威力彩</h2>
-<div id="power" class="numbers"></div>
-
-<select id="mode" onchange="updateInfo()">
+<select id="mode">
 <option value="normal">穩定版</option>
 <option value="high">衝獎版</option>
 <option value="cold">低分獎版</option>
 </select>
 
-<button onclick="generate()">重新產生</button>
+<button onclick="generateAll()">重新產生</button>
 
-<div id="info" class="info"></div>
-<div id="roi" class="roi"></div>
+<div id="result"></div>
 
 <script>
 
+// 隨機不重複
 function uniqueNumbers(count, min, max){
   let set = new Set();
   while(set.size < count){
@@ -103,17 +99,36 @@ function uniqueNumbers(count, min, max){
   return Array.from(set).sort((a,b)=>a-b);
 }
 
-function render(id, nums, extra=null){
-  let html = nums.map(n=>`<div class="ball">${n}</div>`).join("");
-  if(extra!==null){
-    html += `<div class="ball power">${extra}</div>`;
-  }
-  document.getElementById(id).innerHTML = html;
+// ROI評估
+function evaluateROI(nums){
+
+  let score = 0;
+
+  let low = nums.filter(n=>n<=19).length;
+  let mid = nums.filter(n=>n>=20 && n<=39).length;
+  let high = nums.filter(n=>n>=40).length;
+
+  if(low>=1 && mid>=1 && high>=1) score += 2;
+
+  let range = Math.max(...nums) - Math.min(...nums);
+  if(range > 20) score += 1;
+
+  let above31 = nums.filter(n=>n>31).length;
+  if(above31 >= 4) score += 2;
+
+  return score;
 }
 
-function generate(){
+// 顯示球
+function renderBalls(nums, extra){
+  let html = nums.map(n=>`<div class="ball">${n}</div>`).join("");
+  html += `<div class="ball power">${extra}</div>`;
+  return `<div class="numbers">${html}</div>`;
+}
 
-  let mode = document.getElementById("mode").value;
+// 產生單組
+function generateOne(mode){
+
   let lotto;
 
   if(mode==="normal"){
@@ -131,40 +146,52 @@ function generate(){
   }
 
   let power = uniqueNumbers(6,1,38);
-  let power2 = [6,7,8][Math.floor(Math.random()*3)];
+  let p2 = [6,7,8][Math.floor(Math.random()*3)];
 
-  render("lotto", lotto);
-  render("power", power, power2);
+  let score = evaluateROI(lotto);
+
+  return {lotto, power, p2, score};
 }
 
-function updateInfo(){
+// 主流程
+function generateAll(){
 
   let mode = document.getElementById("mode").value;
 
-  let infoText = "";
-  let roiText = "";
+  let groups = [];
 
-  if(mode==="normal"){
-    infoText = "穩定版：分布平均（低/中/高各2），降低選號錯誤風險，適合長期使用。";
-    roiText = "ROI約0.6~0.7：代表每投入100，平均回收60~70，屬於穩定策略。";
-  }
-  else if(mode==="high"){
-    infoText = "衝獎版：偏高號集中，提高中頭獎時的獨占機率，但命中率較低。";
-    roiText = "ROI約0.4~0.6：波動大，通常較低，但中獎時報酬高。";
-  }
-  else{
-    infoText = "低分獎版：避開生日號（1~31），降低與他人重號機率。";
-    roiText = "ROI約0.6~0.75：命中率略低，但中獎時較不易分獎。";
+  for(let i=0;i<5;i++){
+    groups.push(generateOne(mode));
   }
 
-  document.getElementById("info").innerText = infoText;
-  document.getElementById("roi").innerText = roiText;
+  // 排序（高分在前）
+  groups.sort((a,b)=>b.score-a.score);
+
+  let html = "";
+
+  groups.forEach((g,index)=>{
+
+    let label = "";
+    if(g.score>=4) label="🔥 高潛力";
+    else if(g.score>=2) label="👍 穩定";
+    else label="⚠️ 保守";
+
+    html += `
+      <div class="group ${index===0?"best":""}">
+        ${index===0?"⭐ 最佳組合":""}
+        <div>🎯 大樂透</div>
+        ${renderBalls(g.lotto,"")}
+        <div>⚡ 威力彩</div>
+        ${renderBalls(g.power,g.p2)}
+        <div class="roi">評分：${g.score}（${label}）</div>
+      </div>
+    `;
+  });
+
+  document.getElementById("result").innerHTML = html;
 }
 
-window.onload = function(){
-  generate();
-  updateInfo();
-};
+window.onload = generateAll;
 
 </script>
 
