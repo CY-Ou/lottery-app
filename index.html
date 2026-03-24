@@ -15,15 +15,19 @@ body{
 
 h2{margin-top:20px;}
 
-.group{
+.card{
   background:white;
   padding:15px;
-  border-radius:12px;
+  border-radius:14px;
   margin:12px 0;
 }
 
 .best{
   border:3px solid #34C759;
+}
+
+.alt{
+  opacity:0.8;
 }
 
 .numbers{
@@ -35,8 +39,8 @@ h2{margin-top:20px;}
 }
 
 .ball{
-  width:46px;
-  height:46px;
+  width:48px;
+  height:48px;
   border-radius:50%;
   background:#007AFF;
   color:white;
@@ -49,26 +53,9 @@ h2{margin-top:20px;}
 
 .power{background:#ff9500;}
 
-.roi{
+.tag{
   font-size:14px;
   margin-top:5px;
-  color:#555;
-}
-
-.explain{
-  margin-top:6px;
-  font-size:13px;
-  color:#666;
-}
-
-.info{
-  margin-top:20px;
-  background:white;
-  padding:15px;
-  border-radius:12px;
-  font-size:13px;
-  text-align:left;
-  line-height:1.6;
 }
 
 button{
@@ -92,7 +79,7 @@ select{
 
 <body>
 
-<h2>🎯 自動選最佳號碼</h2>
+<h2>🎯 今日推薦號碼</h2>
 
 <select id="mode">
 <option value="normal">穩定版</option>
@@ -100,25 +87,10 @@ select{
 <option value="cold">低分獎版</option>
 </select>
 
-<button onclick="generateAll()">重新產生</button>
+<button onclick="generate()">重新產生</button>
 
-<div id="result"></div>
-
-<div class="info">
-<b>📊 評分說明</b><br>
-🔥 4~5分：高潛力（分布佳＋避開熱門區）<br>
-👍 2~3分：穩定（基本合理配置）<br>
-⚠️ 0~1分：保守（可能集中或熱門）<br><br>
-
-<b>📈 ROI概念</b><br>
-ROI越高＝長期回收率越好<br>
-0.7+：較佳策略<br>
-0.6~0.7：穩定策略<br>
-0.5~0.6：一般/偏保守<br><br>
-
-※ 注意：樂透為隨機事件，評分代表「選號品質」，非中獎機率
-
-</div>
+<div id="main"></div>
+<div id="alt"></div>
 
 <script>
 
@@ -130,7 +102,7 @@ function uniqueNumbers(count, min, max){
   return Array.from(set).sort((a,b)=>a-b);
 }
 
-function evaluateROI(nums){
+function evaluate(nums){
 
   let score = 0;
 
@@ -138,102 +110,89 @@ function evaluateROI(nums){
   let mid = nums.filter(n=>n>=20 && n<=39).length;
   let high = nums.filter(n=>n>=40).length;
 
-  if(low>=1 && mid>=1 && high>=1) score += 2;
+  if(low>=1 && mid>=1 && high>=1) score+=2;
 
-  let range = Math.max(...nums) - Math.min(...nums);
-  if(range > 20) score += 1;
+  let range = Math.max(...nums)-Math.min(...nums);
+  if(range>20) score+=1;
 
   let above31 = nums.filter(n=>n>31).length;
-  if(above31 >= 4) score += 2;
+  if(above31>=4) score+=2;
 
-  let label, desc, roi;
-
-  if(score >=4){
-    label="🔥 高潛力";
-    desc="分布佳且避開熱門區";
-    roi="0.7+";
-  }
-  else if(score >=2){
-    label="👍 穩定";
-    desc="分布正常";
-    roi="0.6~0.7";
-  }
-  else{
-    label="⚠️ 保守";
-    desc="可能集中或熱門";
-    roi="0.5~0.6";
-  }
-
-  return {score,label,desc,roi};
+  return score;
 }
 
-function renderBalls(nums, extra){
-  let html = nums.map(n=>`<div class="ball">${n}</div>`).join("");
-  html += `<div class="ball power">${extra}</div>`;
-  return `<div class="numbers">${html}</div>`;
+function render(nums, power, p2){
+  let balls = nums.map(n=>`<div class="ball">${n}</div>`).join("");
+  balls += `<div class="ball power">${p2}</div>`;
+  return `<div class="numbers">${balls}</div>`;
 }
 
-function generateOne(mode){
+function createSet(mode){
 
   let lotto;
 
   if(mode==="normal"){
-    lotto = [
+    lotto=[
       ...uniqueNumbers(2,1,19),
       ...uniqueNumbers(2,20,39),
       ...uniqueNumbers(2,40,49)
     ].sort((a,b)=>a-b);
   }
   else if(mode==="high"){
-    lotto = uniqueNumbers(6,30,49);
+    lotto=uniqueNumbers(6,30,49);
   }
   else{
-    lotto = uniqueNumbers(6,32,49);
+    lotto=uniqueNumbers(6,32,49);
   }
 
-  let power = uniqueNumbers(6,1,38);
-  let p2 = [6,7,8][Math.floor(Math.random()*3)];
+  let power=uniqueNumbers(6,1,38);
+  let p2=[6,7,8][Math.floor(Math.random()*3)];
 
-  let result = evaluateROI(lotto);
+  let score=evaluate(lotto);
 
-  return {lotto, power, p2, result};
+  return {lotto,power,p2,score};
 }
 
-function generateAll(){
+function generate(){
 
-  let mode = document.getElementById("mode").value;
+  let mode=document.getElementById("mode").value;
 
-  let groups = [];
+  let sets=[];
 
-  for(let i=0;i<5;i++){
-    groups.push(generateOne(mode));
+  for(let i=0;i<6;i++){
+    sets.push(createSet(mode));
   }
 
-  groups.sort((a,b)=>b.result.score-a.result.score);
+  sets.sort((a,b)=>b.score-a.score);
 
-  let html = "";
+  let best=sets[0];
+  let alt=sets.slice(1,3);
 
-  groups.forEach((g,index)=>{
+  // ⭐ 主推薦
+  document.getElementById("main").innerHTML=`
+    <div class="card best">
+      ⭐ 最佳推薦（評分:${best.score}）
+      <div>🎯 大樂透</div>
+      ${render(best.lotto,best.power,best.p2)}
+    </div>
+  `;
 
-    html += `
-      <div class="group ${index===0?"best":""}">
-        ${index===0?"⭐ 最佳組合":""}
-        <div>🎯 大樂透</div>
-        ${renderBalls(g.lotto,"")}
-        <div>⚡ 威力彩</div>
-        ${renderBalls(g.power,g.p2)}
-        <div class="roi">
-          評分：${g.result.score}（${g.result.label}）｜ROI：${g.result.roi}
-        </div>
-        <div class="explain">${g.result.desc}</div>
+  // 🟡 備選
+  let altHTML="";
+
+  alt.forEach(a=>{
+    altHTML+=`
+      <div class="card alt">
+        備選（評分:${a.score}）
+        ${render(a.lotto,a.power,a.p2)}
       </div>
     `;
   });
 
-  document.getElementById("result").innerHTML = html;
+  document.getElementById("alt").innerHTML=altHTML;
 }
 
-window.onload = generateAll;
+window.onload=generate;
 
 </script>
 
