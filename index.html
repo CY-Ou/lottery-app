@@ -55,6 +55,22 @@ h2{margin-top:20px;}
   color:#555;
 }
 
+.explain{
+  margin-top:6px;
+  font-size:13px;
+  color:#666;
+}
+
+.info{
+  margin-top:20px;
+  background:white;
+  padding:15px;
+  border-radius:12px;
+  font-size:13px;
+  text-align:left;
+  line-height:1.6;
+}
+
 button{
   padding:14px 28px;
   font-size:18px;
@@ -88,9 +104,24 @@ select{
 
 <div id="result"></div>
 
+<div class="info">
+<b>📊 評分說明</b><br>
+🔥 4~5分：高潛力（分布佳＋避開熱門區）<br>
+👍 2~3分：穩定（基本合理配置）<br>
+⚠️ 0~1分：保守（可能集中或熱門）<br><br>
+
+<b>📈 ROI概念</b><br>
+ROI越高＝長期回收率越好<br>
+0.7+：較佳策略<br>
+0.6~0.7：穩定策略<br>
+0.5~0.6：一般/偏保守<br><br>
+
+※ 注意：樂透為隨機事件，評分代表「選號品質」，非中獎機率
+
+</div>
+
 <script>
 
-// 隨機不重複
 function uniqueNumbers(count, min, max){
   let set = new Set();
   while(set.size < count){
@@ -99,7 +130,6 @@ function uniqueNumbers(count, min, max){
   return Array.from(set).sort((a,b)=>a-b);
 }
 
-// ROI評估
 function evaluateROI(nums){
 
   let score = 0;
@@ -116,17 +146,33 @@ function evaluateROI(nums){
   let above31 = nums.filter(n=>n>31).length;
   if(above31 >= 4) score += 2;
 
-  return score;
+  let label, desc, roi;
+
+  if(score >=4){
+    label="🔥 高潛力";
+    desc="分布佳且避開熱門區";
+    roi="0.7+";
+  }
+  else if(score >=2){
+    label="👍 穩定";
+    desc="分布正常";
+    roi="0.6~0.7";
+  }
+  else{
+    label="⚠️ 保守";
+    desc="可能集中或熱門";
+    roi="0.5~0.6";
+  }
+
+  return {score,label,desc,roi};
 }
 
-// 顯示球
 function renderBalls(nums, extra){
   let html = nums.map(n=>`<div class="ball">${n}</div>`).join("");
   html += `<div class="ball power">${extra}</div>`;
   return `<div class="numbers">${html}</div>`;
 }
 
-// 產生單組
 function generateOne(mode){
 
   let lotto;
@@ -148,12 +194,11 @@ function generateOne(mode){
   let power = uniqueNumbers(6,1,38);
   let p2 = [6,7,8][Math.floor(Math.random()*3)];
 
-  let score = evaluateROI(lotto);
+  let result = evaluateROI(lotto);
 
-  return {lotto, power, p2, score};
+  return {lotto, power, p2, result};
 }
 
-// 主流程
 function generateAll(){
 
   let mode = document.getElementById("mode").value;
@@ -164,17 +209,11 @@ function generateAll(){
     groups.push(generateOne(mode));
   }
 
-  // 排序（高分在前）
-  groups.sort((a,b)=>b.score-a.score);
+  groups.sort((a,b)=>b.result.score-a.result.score);
 
   let html = "";
 
   groups.forEach((g,index)=>{
-
-    let label = "";
-    if(g.score>=4) label="🔥 高潛力";
-    else if(g.score>=2) label="👍 穩定";
-    else label="⚠️ 保守";
 
     html += `
       <div class="group ${index===0?"best":""}">
@@ -183,7 +222,10 @@ function generateAll(){
         ${renderBalls(g.lotto,"")}
         <div>⚡ 威力彩</div>
         ${renderBalls(g.power,g.p2)}
-        <div class="roi">評分：${g.score}（${label}）</div>
+        <div class="roi">
+          評分：${g.result.score}（${g.result.label}）｜ROI：${g.result.roi}
+        </div>
+        <div class="explain">${g.result.desc}</div>
       </div>
     `;
   });
