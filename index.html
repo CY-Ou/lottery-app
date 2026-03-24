@@ -27,7 +27,7 @@ h2{margin-top:20px;}
 }
 
 .alt{
-  opacity:0.8;
+  opacity:0.9;
 }
 
 .numbers{
@@ -35,7 +35,7 @@ h2{margin-top:20px;}
   justify-content:center;
   flex-wrap:wrap;
   gap:12px;
-  margin:10px 0;
+  margin:8px 0;
 }
 
 .ball{
@@ -52,11 +52,6 @@ h2{margin-top:20px;}
 }
 
 .power{background:#ff9500;}
-
-.tag{
-  font-size:14px;
-  margin-top:5px;
-}
 
 button{
   padding:14px 28px;
@@ -94,6 +89,7 @@ select{
 
 <script>
 
+// 不重複亂數
 function uniqueNumbers(count, min, max){
   let set = new Set();
   while(set.size < count){
@@ -102,6 +98,7 @@ function uniqueNumbers(count, min, max){
   return Array.from(set).sort((a,b)=>a-b);
 }
 
+// 評分
 function evaluate(nums){
 
   let score = 0;
@@ -121,12 +118,12 @@ function evaluate(nums){
   return score;
 }
 
-function render(nums, power, p2){
-  let balls = nums.map(n=>`<div class="ball">${n}</div>`).join("");
-  balls += `<div class="ball power">${p2}</div>`;
-  return `<div class="numbers">${balls}</div>`;
+// 渲染球（通用）
+function renderBalls(nums, colorClass=""){
+  return nums.map(n=>`<div class="ball ${colorClass}">${n}</div>`).join("");
 }
 
+// 產生單組
 function createSet(mode){
 
   let lotto;
@@ -145,14 +142,15 @@ function createSet(mode){
     lotto=uniqueNumbers(6,32,49);
   }
 
-  let power=uniqueNumbers(6,1,38);
-  let p2=[6,7,8][Math.floor(Math.random()*3)];
+  let power1 = uniqueNumbers(6,1,38); // 第一區
+  let power2 = [6,7,8][Math.floor(Math.random()*3)]; // 第二區
 
   let score=evaluate(lotto);
 
-  return {lotto,power,p2,score};
+  return {lotto, power1, power2, score};
 }
 
+// 主流程
 function generate(){
 
   let mode=document.getElementById("mode").value;
@@ -172,8 +170,17 @@ function generate(){
   document.getElementById("main").innerHTML=`
     <div class="card best">
       ⭐ 最佳推薦（評分:${best.score}）
+      
       <div>🎯 大樂透</div>
-      ${render(best.lotto,best.power,best.p2)}
+      <div class="numbers">
+        ${renderBalls(best.lotto)}
+      </div>
+
+      <div>⚡ 威力彩</div>
+      <div class="numbers">
+        ${renderBalls(best.power1)}
+        ${renderBalls([best.power2], "power")}
+      </div>
     </div>
   `;
 
@@ -184,7 +191,17 @@ function generate(){
     altHTML+=`
       <div class="card alt">
         備選（評分:${a.score}）
-        ${render(a.lotto,a.power,a.p2)}
+
+        <div>🎯 大樂透</div>
+        <div class="numbers">
+          ${renderBalls(a.lotto)}
+        </div>
+
+        <div>⚡ 威力彩</div>
+        <div class="numbers">
+          ${renderBalls(a.power1)}
+          ${renderBalls([a.power2], "power")}
+        </div>
       </div>
     `;
   });
